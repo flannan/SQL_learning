@@ -1,145 +1,146 @@
 <?php
-
-$sqlCodeClear = <<<SQL
-drop table IF EXISTS channels;
-drop table IF EXISTS channel_names;
-drop table IF EXISTS group_contents;
-drop table IF EXISTS group_names;
-drop table IF EXISTS contacts;
-drop table IF EXISTS users;
-SQL;
-
-
-$sqlCodeCreate = <<<SQL
-create table IF NOT EXISTS users
-(
-    id   int unsigned auto_increment primary key,
-    name varchar(127) not null
-);
-
-create table IF NOT EXISTS contacts
-(
-    id            int  unsigned   auto_increment  primary key,
-    user_id       int unsigned,
-    name          varchar(127) null,
-    phone         varchar(11)  null,
-    email         varchar(127)  null,
-    calls_count   smallint DEFAULT 0,
-    foreign key (user_id) references users(id)
-        ON DELETE CASCADE
-);
-
-
-create table IF NOT EXISTS group_names
-(
-    id      int unsigned auto_increment primary key,
-    name    varchar(127) not null,
-    user_id int unsigned,
-    foreign key (user_id) references users(id)
-        ON DELETE CASCADE
-);
-
-create table IF NOT EXISTS group_contents
-(
-    group_id    int unsigned,
-    contact_id  int unsigned,
-    foreign key (group_id) references group_names(id)
-        ON DELETE CASCADE,
-    foreign key (contact_id) references contacts(id)
-        ON DELETE CASCADE
-);
-
-create table IF NOT EXISTS channel_names
-(
-    id   tinyint unsigned auto_increment primary key,
-    name varchar(127) not null
-);
-
-create table IF NOT EXISTS channels
-(
-    contact_id  int unsigned,
-    channel_id  tinyint unsigned,
-    token       varchar(127),
-    foreign key (contact_id) references contacts(id)
-        ON DELETE CASCADE,
-    foreign key (channel_id) references channel_names(id)
-        ON DELETE CASCADE
-);
-
-SQL;
-
-include_once __DIR__ . '/generateNames.php';
-$numberOfUsers = 100;
-$maxContactsPerUser = 100;
-$groupNames = ['все контакты', 'друзья', 'знакомые', 'клиенты'];
-$groupProbabilities = [10, 1, 2, 7];
-$contactCounter = 0;
+/** @noinspection ForgottenDebugOutputInspection */
 $mysqli = new mysqli('localhost', 'stud08', 'stud08', 'test');
-/*
-$query = mysqli_multi_query($mysqli, $sqlCodeClear);
-if ($query === false) {
-    echo "failed clearing database \n";
-}
-$query = mysqli_multi_query($mysqli, $sqlCodeCreate);
-if ($query === false) {
-    echo "failed creating tables \n";
-}
-$channelNames = ['WhatsApp','Viber','Telegram'];
-foreach ($channelNames as $key=>$channelName) {
-    $sqlAddChannel = <<<SQL
-INSERT INTO channel_names (id,name)
-VALUES ($key,'$channelName');
-SQL;
-    $query = mysqli_query($mysqli, $sqlCodeCreate);
-    if ($query === false) {
-        echo "failed filling channel names \n";
-    }
-}
-*/
+$mysqli->set_charset('utf8');
 
-for ($user = 1; $user <= $numberOfUsers; $user++) {
-    $username = randomName((string)$user);
-    $sqlAddUser = <<<SQL
-INSERT INTO users (id, name)
-VALUES ($user,'$username');
-SQL;
-    mysqli_query($mysqli, $sqlAddUser);
+//Добавление контакта
 
-    foreach ($groupNames as $groupName) {
-        $sqlAddGroup = <<<SQL
-INSERT INTO group_names (name,user_id)
-VALUES ('$groupName',$user);
+$user = 11;
+$contactName = 'Иван Иванович Иванов';
+$phone = '12345678900';
+$mail = 'ivanov@yandex.ru';
+$sqlAddContact = <<<SQL
+INSERT INTO contacts (user_id, name, phone, email)
+VALUES ($user,'$contactName','$phone','$mail');
 SQL;
-        $query = mysqli_query($mysqli, $sqlAddGroup);
-        if ($query === false) {
-            echo "failed adding user group $groupName \n";
-        }
-        //var_export($query);
-    }
+echo $sqlAddContact . "\n";
+$query = mysqli_query($mysqli, $sqlAddContact);
+var_export($query);
+echo PHP_EOL;
 
-    $contactsThisUser = mt_rand(0, $maxContactsPerUser);
-    for ($contact = 1; $contact <= $contactsThisUser; $contact++) {
-        $contactCounter++;
-        $contactName = randomName((string)$contact);
-        $mail = 'address' . $contact . '@mail.ru';
-        $phone = randomPhoneNumber(11);
-        $sqlAddContact = <<<SQL
-INSERT INTO contacts (id, user_id, name, phone, email)
-VALUES ($contactCounter,$user,'$contactName','$phone','$mail');
+//изменение контакта (здесь изменяется только его номер телефона)
+$contactID = 11;
+$phone = '09876543210';
+$sqlModifyContact = <<<SQL
+update contacts
+SET phone='$phone'
+WHERE id = $contactID;
 SQL;
-        mysqli_query($mysqli, $sqlAddContact);
+echo $sqlModifyContact . "\n";
+$query = mysqli_query($mysqli, $sqlModifyContact);
+var_export($query);
+echo PHP_EOL;
 
-        foreach ($groupNames as $group => $groupName) {
-            if (mt_rand(1, 10) <= $groupProbabilities[$group]) {
-                $group_id = ($user - 1) * count($groupNames) + $group + 1;
-                $sqlAddToGroup = <<<SQL
+//изменение контакта (здесь изменяется токен Телеграмма)
+$contactID = 11;
+$channelID = 3; //Телеграмм.
+$token = 'flannan';
+$sqlModifyContact = <<<SQL
+REPLACE INTO channels (contact_id,channel_id,token)
+VALUES ($contactID,$channelID,'$token');
+SQL;
+echo $sqlModifyContact . "\n";
+$query = mysqli_query($mysqli, $sqlModifyContact);
+var_export($query);
+echo PHP_EOL;
+
+//удаление контакта
+$contactID = 11;
+$sqlDeleteContact = <<<SQL
+DELETE FROM contacts
+WHERE id=$contactID;
+SQL;
+echo $sqlDeleteContact . "\n";
+$query = mysqli_query($mysqli, $sqlDeleteContact);
+var_export($query);
+echo PHP_EOL;
+
+//добавление контакта в группу
+$group_id = 1;
+$contactID = 10;
+$sqlAddToGroup = <<<SQL
 INSERT INTO group_contents (group_id,contact_id)
-VALUES ($group_id,$contactCounter);
+VALUES ($group_id,$contactID);
 SQL;
-                mysqli_query($mysqli, $sqlAddToGroup);
-            }
-        }
-    }
-    echo "added $contactCounter contacts \n";
+echo $sqlAddToGroup . "\n";
+var_export(mysqli_query($mysqli, $sqlAddToGroup));
+echo PHP_EOL;
+
+//удаление контакта из группы
+$group_id = 1;
+$contactID = 10;
+$sqlAddToGroup = <<<SQL
+DELETE FROM group_contents
+WHERE (group_id=$group_id AND contact_id=$contactID);
+SQL;
+echo $sqlAddToGroup . "\n";
+var_export(mysqli_query($mysqli, $sqlAddToGroup));
+echo PHP_EOL;
+
+//Вывод групп с подсчетом количества контактов.
+$userID=1;
+$sqlQueryGroups=<<<SQL
+SELECT group_names.name, COUNT(group_contents.contact_id) as contacts
+FROM group_names
+         LEFT JOIN group_contents on group_names.id = group_id
+WHERE user_id=$userID
+GROUP BY group_names.id;
+SQL;
+echo $sqlQueryGroups . "\n";
+$query = mysqli_query($mysqli, $sqlQueryGroups);
+var_export(mysqli_fetch_all($query));
+echo PHP_EOL;
+
+//Вывод группы “Часто используемые”, где выводятся топ10 контактов, на которые рассылают сообщения.
+$userID=11;
+$sqlQueryGroups=<<<SQL
+SELECT name, calls_count
+FROM contacts
+WHERE user_id = $userID
+ORDER BY calls_count DESC
+LIMIT 10;
+SQL;
+echo $sqlQueryGroups . PHP_EOL;
+$query = mysqli_query($mysqli, $sqlQueryGroups);
+if ($query === false) {
+    var_export($query);
+} else {
+    echo mysqli_fetch_all($query);
 }
-echo "added $contactCounter contacts \n";
+echo PHP_EOL;
+
+//Поиск контактов по ФИО/номеру.
+$userID=1;
+$name='Ivan%';
+$sqlFindContact=<<<SQL
+SELECT id, name
+FROM contacts
+WHERE (user_id = $userID AND name LIKE '$name')
+SQL;
+echo $sqlFindContact . PHP_EOL;
+$query = mysqli_query($mysqli, $sqlFindContact);
+if ($query === false) {
+    var_export($query);
+} else {
+    echo mysqli_fetch_all($query);
+    //var_export();
+}
+echo PHP_EOL;
+
+//Выборка контактов по группе.
+$userID=1;
+$group_id=2;
+$sqlFindContact=<<<SQL
+SELECT id, name
+FROM contacts
+LEFT JOIN group_contents ON contacts.id = group_contents.contact_id
+WHERE group_contents.group_id = $group_id
+SQL;
+echo $sqlFindContact . PHP_EOL;
+$query = mysqli_query($mysqli, $sqlFindContact);
+if ($query === false) {
+    var_export($query);
+} else {
+    echo mysqli_fetch_all($query);
+}
+echo PHP_EOL;
