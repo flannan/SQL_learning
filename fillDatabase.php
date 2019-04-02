@@ -149,3 +149,10 @@ SQL;
 }
 $mysqli->commit();
 echo "commit successful \n";
+
+//добавляем индекс
+$sqlAddIndex=<<<SQL
+CREATE INDEX fullName ON contacts(name);
+SQL;
+mysqli_query($mysqli, $sqlAddIndex);
+echo "index based on username added \n";
