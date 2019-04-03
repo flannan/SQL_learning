@@ -70,8 +70,8 @@ create table IF NOT EXISTS channels
 SQL;
 
 include_once __DIR__ . '/generators.php';
-$numberOfUsers = 1000;
-$maxContactsPerUser = 10000;
+$numberOfUsers = 100;
+$maxContactsPerUser = 100;
 $groupNames = ['все контакты', 'друзья', 'знакомые', 'клиенты'];
 $groupProbabilities = [10, 1, 2, 7];
 $contactCounter = 0;
@@ -85,7 +85,7 @@ $query = mysqli_multi_query($mysqli, $sqlCodeCreate);
 if ($query === false) {
     echo "failed creating tables \n";
 }
-*/
+
 $channelNames = ['WhatsApp', 'Viber', 'Telegram'];
 foreach ($channelNames as $key => $channelName) {
     $sqlAddChannel = <<<SQL
@@ -98,7 +98,7 @@ SQL;
         echo "failed filling channel names \n";
     }
 }
-
+*/
 
 $mysqli->set_charset('utf8');
 $mysqli->begin_transaction();
